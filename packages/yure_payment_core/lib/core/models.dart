@@ -1,66 +1,114 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:yure_payment_core/core/enums.dart';
 
+/// SDK de Paiement - Classes principales exposées au marchand
+///
+/// Ce SDK permet aux marchands d'intégrer un système de paiement
+/// avec multiple providers dans leur application Flutter.
+
+/// Résultat d'une opération de paiement retourné au marchand
+///
+/// Contient les informations finales sur l'état du paiement
+/// après traitement par le provider sélectionné.
 class PaymentResult {
-  final int id;
+  /// Identifiant unique de la transaction dans le système
+  /// Peut être null si la transaction n'a pas pu être créée
   final int? transactionId;
-  final String message;
+
+  /// Message descriptif sur l'état du paiement
+  /// (succès, échec, raison du refus, etc.)
+  final String? message;
+
+  /// Statut courant du paiement
+  /// [PaymentStatus.inProgress] : En cours de traitement
+  /// [PaymentStatus.succeeded] : Paiement réussi
+  /// [PaymentStatus.failed] : Paiement échoué
+  /// [PaymentStatus.canceled] : Paiement annulé
   final PaymentStatus status;
+
+  /// Requête de paiement originale qui a initié la transaction
+  /// Permet de conserver le contexte du paiement
+  final PaymentRequest? request;
 
   PaymentResult({
-    required this.id,
     this.transactionId,
-    required this.message,
+    this.message,
     required this.status,
+    this.request,
   });
 }
 
+/// Paramètres de paiement fournis par le marchand
+///
+/// Cette classe encapsule toutes les informations nécessaires
+/// pour initier un processus de paiement.
 class PaymentRequest {
-  final String selectedProviderName;
-  final String merchantId;
-  final String article;
-  final int amount;
-  final int number;
+  /// Identifiant du provider de paiement à utiliser
+  /// Ex: 'visa', 'momo', 'paypal', 'mock'
+  final String providerName;
 
-  const PaymentRequest({
-    required this.selectedProviderName,
-    required this.merchantId,
-    required this.article,
-    required this.amount,
-    required this.number,
-  });
+  /// Montant de la transaction
+  final int amount;
+
+  const PaymentRequest({required this.providerName, required this.amount});
 }
 
-class Transaction {
-  final int id;
-  final PaymentRequest paymentRequest;
-  final PaymentStatus status;
+/// Configuration du marchand pour le SDK de paiement
+///
+/// Contient les identifiants et informations du marchand
+/// nécessaires à l'authentification et au tracking.
+class PaymentConfig {
+  /// Identifiant unique du marchand dans le système de paiement
+  /// Utilisé pour l'authentification et le reporting
+  final String merchantId;
 
-  Transaction({
+  /// Nom commercial du marchand
+  /// Affiché dans l'interface de paiement si nécessaire
+  final String merchantName;
+
+  const PaymentConfig({required this.merchantId, required this.merchantName});
+}
+
+/// Informations d'un provider de paiement disponible
+///
+/// Présenté au marchand pour sélection du mode de paiement
+/// dans l'interface utilisateur.
+class ProviderInfo {
+  /// Identifiant technique du provider
+  /// Ex: 'Mock', 'Visa', 'Paypal'
+  final String id;
+
+  /// Nom d'affichage du provider
+  /// Ex: 'Carte Bancaire', 'Mobile Money', 'PayPal'
+  final String name;
+
+  /// Logo du provider
+  final String logo;
+
+  ProviderInfo({required this.id, required this.name, required this.logo});
+}
+
+/// Représentation d'une transaction de paiement
+///
+/// Utilisé pour le suivi et l'historique des transactions
+/// dans le système du marchand.
+class Payment {
+  /// Identifiant unique de la transaction
+  final int id;
+
+  /// Montant de la transaction
+  final int amount;
+
+  /// Nom du provider utilisé pour ce paiement
+  final String providerName;
+
+  /// Statut courant de la transaction
+  /// Peut évoluer dans le temps (inProgress → succeeded/failed)
+  PaymentStatus status;
+
+  Payment({
     required this.id,
-    required this.paymentRequest,
+    required this.amount,
+    required this.providerName,
     required this.status,
   });
-
-  Transaction copyWith({
-    int? id,
-    PaymentRequest? paymentRequest,
-    PaymentStatus? status,
-  }) {
-    return Transaction(
-      id: id ?? this.id,
-      paymentRequest: paymentRequest ?? this.paymentRequest,
-      status: status ?? this.status,
-    );
-  }
-}
-
-class PaymentConfig {}
-
-class ProviderInfo {
-  final String id; // ex: "visa", "momo", "mock"
-  final String name; // ex: "Visa", "Mobile Money", "Provider de test"
-  // éventuellement un logo, une description, etc.
-
-  ProviderInfo({required this.id, required this.name});
 }

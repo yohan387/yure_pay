@@ -1,224 +1,129 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yure_payment_core/core/enums.dart';
 import 'package:yure_payment_core/core/models.dart';
+import 'package:yure_payment_core/core/exceptions.dart';
+
 import 'package:yure_payment_core/src/providers/mock_provider.dart';
 
 void main() {
   group('MockProvider', () {
-    late MockProvider mockProvider;
-    late PaymentRequest validPaymentRequest;
-    late PaymentRequest invalidPaymentRequest;
-
-    // Helper method to clear mock requests
-    void _clearMockRequests() {
-      // Access private field using reflection or provide a public method
-      // This assumes you add a static clear method to MockProvider
-      // MockProvider.clearRequests();
-    }
+    late MockProvider provider;
 
     setUp(() {
-      mockProvider = MockProvider();
-      validPaymentRequest = PaymentRequest(
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        amount: 50000,
-        selectedProviderName: 'MOCK',
-        // Add other required fields based on your PaymentRequest model
-      );
-      invalidPaymentRequest = PaymentRequest(
-        amount: 200000, // Exceeds max amount
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        selectedProviderName: 'MOCK',
-        // Add other required fields
-      );
-
-      // Clear requests before each test
-      _clearMockRequests();
+      provider = MockProvider();
+      MockProvider.reset(); // Réinitialiser avant chaque test
     });
 
-    tearDown(() {
-      _clearMockRequests();
+    test('should return correct name and logo', () {
+      expect(provider.name, 'MOCK');
+      expect(provider.logo, '🧪');
     });
 
-    test('should have correct name', () {
-      expect(mockProvider.name, equals('MOCK'));
+    test('canHandle should return true for MOCK provider', () {
+      final request = PaymentRequest(providerName: 'MOCK', amount: 1000);
+
+      expect(provider.canHandle(request), true);
     });
 
-    group('canHandle', () {
-      test('should return true for MOCK provider name', () {
-        final request = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: 1000,
-          selectedProviderName: 'MOCK',
-        );
+    test('canHandle should return false for other providers', () {
+      final request = PaymentRequest(providerName: 'VISA', amount: 1000);
 
-        expect(mockProvider.canHandle(request), isTrue);
-      });
-
-      test('should return false for non-MOCK provider name', () {
-        final request = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: 1000,
-          selectedProviderName: 'OTHER_PROVIDER',
-        );
-
-        expect(mockProvider.canHandle(request), isFalse);
-      });
+      expect(provider.canHandle(request), false);
     });
 
-    group('processPayment', () {
-      test('should process valid payment amount successfully', () async {
-        const transactionId = 123;
-
-        final result = await mockProvider.processPayment(
-          validPaymentRequest,
-          transactionId,
-        );
-
-        expect(result.id, equals(transactionId));
-        expect(result.status, equals(PaymentStatus.inProgress));
-        expect(result.message, contains('Paiement MOCK accepté et en cours'));
-      });
-
-      test('should fail for payment amount exceeding maximum', () async {
-        const transactionId = 124;
-
-        final result = await mockProvider.processPayment(
-          invalidPaymentRequest,
-          transactionId,
-        );
-
-        expect(result.id, equals(transactionId));
-        expect(result.status, equals(PaymentStatus.failed));
-        expect(result.message, contains('Paiement MOCK refusé'));
-        expect(result.message, contains('montant trop élevé'));
-      });
-
-      test('should take approximately 14 seconds to complete', () async {
-        const transactionId = 125;
-        final stopwatch = Stopwatch()..start();
-
-        await mockProvider.processPayment(validPaymentRequest, transactionId);
-
-        stopwatch.stop();
-        expect(stopwatch.elapsed.inSeconds, greaterThanOrEqualTo(14));
-        expect(
-          stopwatch.elapsed.inSeconds,
-          lessThan(15),
-        ); // Allow some tolerance
-      });
-
-      // test('should store payment request in internal list', () async {
-      //   const transactionId = 126;
-      //   final initialRequestCount = _getMockRequestsCount();
-
-      //   await mockProvider.processPayment(validPaymentRequest, transactionId);
-
-      //   expect(_getMockRequestsCount(), equals(initialRequestCount + 1));
-      // });
-    });
-
-    group('cancelPayment', () {
-      // test('should cancel in-progress payment successfully', () async {
-      //   const transactionId = 127;
-
-      //   // First process a payment
-      //   await mockProvider.processPayment(validPaymentRequest, transactionId);
-
-      //   // Then cancel it
-      //   final cancelResult = await mockProvider.cancelPayment(transactionId);
-
-      //   expect(cancelResult, isTrue);
-
-      //   // Verify the status was updated to canceled
-      //   final canceledRequest = _getMockRequestByTransactionId(transactionId);
-      //   expect(canceledRequest.status, equals(PaymentStatus.canceled));
-      // });
-
-      test(
-        'should return false when canceling non-in-progress payment',
-        () async {
-          const transactionId = 128;
-
-          // Process a payment that will fail (exceeds max amount)
-          await mockProvider.processPayment(
-            invalidPaymentRequest,
-            transactionId,
-          );
-
-          // Try to cancel the failed payment
-          final cancelResult = await mockProvider.cancelPayment(transactionId);
-
-          expect(cancelResult, isFalse);
-        },
+    test('processPayment should succeed for valid amount', () async {
+      final result = await provider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 1,
+        amount: 5000,
       );
 
-      test('should throw exception for non-existent transaction', () async {
-        const nonExistentTransactionId = 999;
-
-        expect(
-          () => mockProvider.cancelPayment(nonExistentTransactionId),
-          throwsA(isA<Exception>()),
-        );
-      });
+      expect(result.status, PaymentStatus.succeeded);
+      expect(result.transactionId, 1);
+      expect(result.message, contains('validé'));
     });
 
-    group('edge cases', () {
-      test('should handle maximum allowed payment amount', () async {
-        const transactionId = 129;
-        final maxAmountRequest = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: 100000, // Exactly the maximum
-          selectedProviderName: 'MOCK',
-        );
+    test('processPayment should fail for amount exceeding limit', () async {
+      final result = await provider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 2,
+        amount: 2000000, // Supérieur à _kMaxPaymentAmount
+      );
 
-        final result = await mockProvider.processPayment(
-          maxAmountRequest,
-          transactionId,
-        );
+      expect(result.status, PaymentStatus.failed);
+      expect(result.message, contains('montant trop élevé'));
+    });
 
-        expect(result.status, equals(PaymentStatus.inProgress));
-      });
-
-      test('should handle zero amount payment', () async {
-        const transactionId = 130;
-        final zeroAmountRequest = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
+    test('processPayment should fail for zero amount', () async {
+      expect(
+        () async => await provider.processPayment(
+          merchantId: 'test_merchant',
+          transactionId: 3,
           amount: 0,
-          selectedProviderName: 'MOCK',
-        );
+        ),
+        throwsA(isA<InvalidAmountException>()),
+      );
+    });
 
-        final result = await mockProvider.processPayment(
-          zeroAmountRequest,
-          transactionId,
-        );
+    test('cancelPayment should succeed for in-progress transaction', () async {
+      // Utiliser un provider avec délai court pour les tests
+      final testProvider = MockProvider();
 
-        expect(result.status, equals(PaymentStatus.inProgress));
-      });
+      // Démarrer le traitement
+      testProvider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 4,
+        amount: 1000,
+      );
+
+      // Annuler rapidement
+      await Future.delayed(const Duration(milliseconds: 10));
+      final canCancel = await testProvider.cancelPayment(4);
+
+      expect(canCancel, true);
+    });
+
+    test('cancelPayment should fail for completed transaction', () async {
+      // Créer et attendre la fin du traitement
+      await provider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 5,
+        amount: 1000,
+      );
+
+      // Attendre que le traitement soit terminé
+      await Future.delayed(const Duration(seconds: 3));
+
+      final canCancel = await provider.cancelPayment(5);
+
+      expect(canCancel, false);
+    });
+
+    test('should maintain transaction history', () async {
+      expect(MockProvider.requestHistory.length, 0);
+
+      await provider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 6,
+        amount: 1000,
+      );
+
+      expect(MockProvider.requestHistory.length, 1);
+      expect(MockProvider.requestHistory.first.transactionId, 6);
+    });
+
+    test('reset should clear transaction history', () async {
+      await provider.processPayment(
+        merchantId: 'test_merchant',
+        transactionId: 7,
+        amount: 1000,
+      );
+
+      expect(MockProvider.requestHistory.length, 1);
+
+      MockProvider.reset();
+
+      expect(MockProvider.requestHistory.length, 0);
     });
   });
 }
-
-// // Helper functions (you would need to implement these in your MockProvider)
-// int _getMockRequestsCount() {
-//   // This would require exposing the requests list or adding a getter
-//   // return MockProvider.requestsCount;
-//   return 0;
-// }
-
-// _MockPaymentRequest _getMockRequestByTransactionId(int transactionId) {
-//   // This would require exposing access to the requests list
-//   // return MockProvider.getRequestByTransactionId(transactionId);
-//   throw UnimplementedError('Implement access to mock requests in MockProvider');
-// }

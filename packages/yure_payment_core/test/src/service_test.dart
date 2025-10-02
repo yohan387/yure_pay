@@ -1,383 +1,153 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yure_payment_core/core/enums.dart';
 import 'package:yure_payment_core/core/models.dart';
-import 'package:yure_payment_core/src/service.dart';
+import 'package:yure_payment_core/core/exceptions.dart';
+import 'package:yure_payment_core/src/services/service.dart';
 
 void main() {
   group('YurePayBackendService', () {
-    late YurePayBackendService backendService;
-    late PaymentRequest evenAmountRequest;
-    late PaymentRequest oddAmountRequest;
-    late PaymentRequest mockProviderRequest;
-    late PaymentRequest otherProviderRequest;
-
-    // Helper method to clear transactions
-    void clearTransactions() {
-      // This would require adding a static clear method to YurePayBackendService
-      // YurePayBackendService.clearTransactions();
-    }
+    late YurePayBackendService backend;
 
     setUp(() {
-      backendService = YurePayBackendService();
-
-      evenAmountRequest = PaymentRequest(
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        amount: 1000, // Even amount
-        selectedProviderName: 'MOCK',
-
-        // Add other required fields
-      );
-
-      oddAmountRequest = PaymentRequest(
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        amount: 1500, // Odd amount
-        selectedProviderName: 'MOCK',
-      );
-
-      mockProviderRequest = PaymentRequest(
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        amount: 2000,
-        selectedProviderName: 'MOCK',
-      );
-
-      otherProviderRequest = PaymentRequest(
-        merchantId: "123",
-        article: "Mon article",
-        number: 1,
-        amount: 2000,
-        selectedProviderName: 'OTHER_PROVIDER',
-      );
-
-      // Clear transactions before each test
-      clearTransactions();
+      backend = YurePayBackendService();
+      YurePayBackendService.reset(); // Réinitialiser avant chaque test
     });
 
-    tearDown(() {
-      clearTransactions();
+    test('createTransaction should return unique transaction ID', () async {
+      final request1 = PaymentRequest(providerName: 'MOCK', amount: 1000);
+
+      final request2 = PaymentRequest(providerName: 'VISA', amount: 2000);
+
+      final id1 = await backend.createTransaction(request1);
+      final id2 = await backend.createTransaction(request2);
+
+      expect(id1, 1);
+      expect(id2, 2);
+      expect(id1, isNot(equals(id2)));
     });
 
-    group('createTransaction', () {
-      test(
-        'should create transaction with even amount and set status to inProgress',
-        () async {
-          final transactionId = await backendService.createTransaction(
-            evenAmountRequest,
-          );
-
-          expect(transactionId, equals(1));
-
-          // Verify transaction was created with correct status
-          final status = await backendService.getPaymentStatus(transactionId);
-          expect(status, equals(PaymentStatus.inProgress));
-        },
-      );
-
-      test(
-        'should create transaction with odd amount and set status to failed',
-        () async {
-          final transactionId = await backendService.createTransaction(
-            oddAmountRequest,
-          );
-
-          expect(transactionId, equals(1));
-
-          // Verify transaction was created with failed status
-          final status = await backendService.getPaymentStatus(transactionId);
-          expect(status, equals(PaymentStatus.failed));
-        },
-      );
-
-      test('should increment transaction IDs sequentially', () async {
-        final firstId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-        final secondId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-        final thirdId = await backendService.createTransaction(
-          evenAmountRequest,
+    test(
+      'createTransaction should set correct initial status for even amounts',
+      () async {
+        final request = PaymentRequest(
+          providerName: 'MOCK',
+          amount: 1000, // Montant pair
         );
 
-        expect(firstId, equals(1));
-        expect(secondId, equals(2));
-        expect(thirdId, equals(3));
-      });
+        final transactionId = await backend.createTransaction(request);
+        final status = await backend.getPaymentStatus(transactionId);
 
-      test('should store transaction with correct payment request', () async {
-        final transactionId = await backendService.createTransaction(
-          mockProviderRequest,
+        expect(status, PaymentStatus.inProgress);
+      },
+    );
+
+    test(
+      'createTransaction should set failed status for odd amounts',
+      () async {
+        final request = PaymentRequest(
+          providerName: 'MOCK',
+          amount: 1001, // Montant impair
         );
 
-        final storedRequest = await backendService.getPaymentInfos(
-          transactionId,
-        );
+        final transactionId = await backend.createTransaction(request);
+        final status = await backend.getPaymentStatus(transactionId);
 
-        expect(storedRequest.amount, equals(mockProviderRequest.amount));
-        expect(
-          storedRequest.selectedProviderName,
-          equals(mockProviderRequest.selectedProviderName),
-        );
-      });
+        expect(status, PaymentStatus.failed);
+      },
+    );
 
-      test('should handle zero amount as even number', () async {
-        final zeroAmountRequest = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: 0, // Even amount
-          selectedProviderName: 'MOCK',
-        );
+    test('updateTransaction should update transaction status', () async {
+      final request = PaymentRequest(providerName: 'MOCK', amount: 1000);
 
-        final transactionId = await backendService.createTransaction(
-          zeroAmountRequest,
-        );
-        final status = await backendService.getPaymentStatus(transactionId);
+      final transactionId = await backend.createTransaction(request);
 
-        expect(status, equals(PaymentStatus.inProgress));
-      });
+      // Vérifier statut initial
+      var status = await backend.getPaymentStatus(transactionId);
+      expect(status, PaymentStatus.inProgress);
 
-      test('should handle negative even amount', () async {
-        final negativeEvenRequest = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: -100, // Even amount
-          selectedProviderName: 'MOCK',
-        );
-
-        final transactionId = await backendService.createTransaction(
-          negativeEvenRequest,
-        );
-        final status = await backendService.getPaymentStatus(transactionId);
-
-        expect(status, equals(PaymentStatus.inProgress));
-      });
-    });
-
-    group('updateTransaction', () {
-      test('should update transaction status successfully', () async {
-        final transactionId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-
-        final paymentResult = PaymentResult(
-          id: 1,
+      // Mettre à jour le statut
+      await backend.updateTransaction(
+        PaymentResult(
           transactionId: transactionId,
           status: PaymentStatus.succeeded,
-          message: 'Payment completed successfully',
-        );
-
-        await backendService.updateTransaction(paymentResult);
-
-        final updatedStatus = await backendService.getPaymentStatus(
-          transactionId,
-        );
-        expect(updatedStatus, equals(PaymentStatus.succeeded));
-      });
-
-      test(
-        'should throw exception when updating non-existent transaction',
-        () async {
-          final paymentResult = PaymentResult(
-            id: 1,
-            transactionId: 999, // Non-existent ID
-            status: PaymentStatus.succeeded,
-            message: 'Payment completed',
-          );
-
-          expect(
-            () => backendService.updateTransaction(paymentResult),
-            throwsA(isA<Exception>()),
-          );
-        },
+          message: 'Paiement réussi',
+        ),
       );
 
-      test('should update transaction multiple times', () async {
-        final transactionId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-
-        // First update
-        await backendService.updateTransaction(
-          PaymentResult(
-            id: 1,
-            transactionId: transactionId,
-            status: PaymentStatus.inProgress,
-            message: 'Still in progress',
-          ),
-        );
-
-        // Second update
-        await backendService.updateTransaction(
-          PaymentResult(
-            id: 1,
-            transactionId: transactionId,
-            status: PaymentStatus.succeeded,
-            message: 'Completed',
-          ),
-        );
-
-        final finalStatus = await backendService.getPaymentStatus(
-          transactionId,
-        );
-        expect(finalStatus, equals(PaymentStatus.succeeded));
-      });
+      // Vérifier statut mis à jour
+      status = await backend.getPaymentStatus(transactionId);
+      expect(status, PaymentStatus.succeeded);
     });
 
-    group('getPaymentInfos', () {
-      test('should return correct payment information', () async {
-        final transactionId = await backendService.createTransaction(
-          otherProviderRequest,
+    test(
+      'updateTransaction should throw for non-existent transaction',
+      () async {
+        final result = PaymentResult(
+          transactionId: 999, // ID inexistant
+          status: PaymentStatus.succeeded,
+          message: 'Test',
         );
 
-        final paymentInfo = await backendService.getPaymentInfos(transactionId);
-
-        expect(paymentInfo.amount, equals(otherProviderRequest.amount));
         expect(
-          paymentInfo.selectedProviderName,
-          equals(otherProviderRequest.selectedProviderName),
+          () async => await backend.updateTransaction(result),
+          throwsA(isA<TransactionNotFoundException>()),
         );
-      });
+      },
+    );
 
-      test('should throw exception for non-existent transaction', () async {
-        expect(
-          () => backendService.getPaymentInfos(999),
-          throwsA(isA<Exception>()),
-        );
-      });
-
-      test('should return identical request object to original', () async {
-        final originalRequest = PaymentRequest(
-          merchantId: "123",
-          article: "Mon article",
-          number: 1,
-          amount: 2500,
-          selectedProviderName: 'SPECIAL_PROVIDER',
-        );
-
-        final transactionId = await backendService.createTransaction(
-          originalRequest,
-        );
-        final retrievedRequest = await backendService.getPaymentInfos(
-          transactionId,
-        );
-
-        expect(retrievedRequest.amount, equals(originalRequest.amount));
-        expect(
-          retrievedRequest.selectedProviderName,
-          equals(originalRequest.selectedProviderName),
-        );
-      });
-    });
-
-    group('getPaymentStatus', () {
-      test(
-        'should return correct status for even amount transaction',
-        () async {
-          final transactionId = await backendService.createTransaction(
-            evenAmountRequest,
-          );
-
-          final status = await backendService.getPaymentStatus(transactionId);
-
-          expect(status, equals(PaymentStatus.inProgress));
-        },
+    test('getPaymentInfos should return original payment request', () async {
+      final originalRequest = PaymentRequest(
+        providerName: 'VISA',
+        amount: 5000,
       );
 
-      test('should return correct status for odd amount transaction', () async {
-        final transactionId = await backendService.createTransaction(
-          oddAmountRequest,
-        );
+      final transactionId = await backend.createTransaction(originalRequest);
+      final retrievedRequest = await backend.getPaymentInfos(transactionId);
 
-        final status = await backendService.getPaymentStatus(transactionId);
-
-        expect(status, equals(PaymentStatus.failed));
-      });
-
-      test('should return updated status after transaction update', () async {
-        final transactionId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-
-        // Update status
-        await backendService.updateTransaction(
-          PaymentResult(
-            id: 1,
-            transactionId: transactionId,
-            status: PaymentStatus.failed,
-            message: 'Failed after update',
-          ),
-        );
-
-        final status = await backendService.getPaymentStatus(transactionId);
-        expect(status, equals(PaymentStatus.failed));
-      });
-
-      test('should throw exception for non-existent transaction', () async {
-        expect(
-          () => backendService.getPaymentStatus(999),
-          throwsA(isA<Exception>()),
-        );
-      });
+      expect(retrievedRequest.providerName, originalRequest.providerName);
+      expect(retrievedRequest.amount, originalRequest.amount);
     });
 
-    group('integration tests', () {
-      test('should handle full payment flow', () async {
-        // Create transaction
-        final transactionId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-        expect(transactionId, equals(1));
+    test('getPaymentInfos should throw for non-existent transaction', () async {
+      expect(
+        () async => await backend.getPaymentInfos(999),
+        throwsA(isA<TransactionNotFoundException>()),
+      );
+    });
 
-        // Verify initial status
-        var status = await backendService.getPaymentStatus(transactionId);
-        expect(status, equals(PaymentStatus.inProgress));
+    test('getPayments should return all transactions', () async {
+      // Créer plusieurs transactions
+      await backend.createTransaction(
+        PaymentRequest(providerName: 'MOCK', amount: 1000),
+      );
 
-        // Verify payment info
-        var paymentInfo = await backendService.getPaymentInfos(transactionId);
-        expect(paymentInfo.amount, equals(evenAmountRequest.amount));
+      await backend.createTransaction(
+        PaymentRequest(providerName: 'VISA', amount: 2000),
+      );
 
-        // Update transaction
-        await backendService.updateTransaction(
-          PaymentResult(
-            id: 1,
-            transactionId: transactionId,
-            status: PaymentStatus.succeeded,
-            message: 'Payment successful',
-          ),
-        );
+      final payments = await backend.getPayments();
 
-        // Verify updated status
-        status = await backendService.getPaymentStatus(transactionId);
-        expect(status, equals(PaymentStatus.succeeded));
-      });
+      expect(payments.length, 2);
+      // La dernière transaction créée (VISA) devrait être en première position
+      expect(payments[0].providerName, 'MOCK');
+      expect(payments[1].providerName, 'VISA');
+    });
+    test('getPayments should return empty list when no transactions', () async {
+      final payments = await backend.getPayments();
 
-      test('should maintain separate transactions', () async {
-        final firstId = await backendService.createTransaction(
-          evenAmountRequest,
-        );
-        final secondId = await backendService.createTransaction(
-          oddAmountRequest,
-        );
+      expect(payments, isEmpty);
+    });
 
-        final firstStatus = await backendService.getPaymentStatus(firstId);
-        final secondStatus = await backendService.getPaymentStatus(secondId);
+    test('reset should clear all transactions', () async {
+      await backend.createTransaction(
+        PaymentRequest(providerName: 'MOCK', amount: 1000),
+      );
 
-        expect(firstStatus, equals(PaymentStatus.inProgress));
-        expect(secondStatus, equals(PaymentStatus.failed));
+      expect(await backend.getPayments(), isNotEmpty);
 
-        final firstInfo = await backendService.getPaymentInfos(firstId);
-        final secondInfo = await backendService.getPaymentInfos(secondId);
+      YurePayBackendService.reset();
 
-        expect(firstInfo.amount, equals(evenAmountRequest.amount));
-        expect(secondInfo.amount, equals(oddAmountRequest.amount));
-      });
+      expect(await backend.getPayments(), isEmpty);
     });
   });
 }

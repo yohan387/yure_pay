@@ -30,6 +30,8 @@ class TipHiveModel {
   @HiveField(1)
   final int amount;
 
+  TipHiveModel({required this.merchantId, required this.amount});
+
   factory TipHiveModel.fromTip(Tip tip) {
     return TipHiveModel(merchantId: tip.merchantId, amount: tip.amount);
   }
@@ -37,6 +39,22 @@ class TipHiveModel {
   Tip toTip() {
     return Tip(merchantId: merchantId, amount: amount);
   }
+}
 
-  TipHiveModel({required this.merchantId, required this.amount});
+class TipHiveModelAdapter extends TypeAdapter<TipHiveModel> {
+  @override
+  final int typeId = 1;
+
+  @override
+  TipHiveModel read(BinaryReader reader) {
+    final merchantId = reader.readString();
+    final amount = reader.readInt();
+    return TipHiveModel(merchantId: merchantId, amount: amount);
+  }
+
+  @override
+  void write(BinaryWriter writer, TipHiveModel obj) {
+    writer.writeString(obj.merchantId);
+    writer.writeInt(obj.amount);
+  }
 }

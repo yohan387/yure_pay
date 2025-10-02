@@ -1,29 +1,30 @@
 import 'package:yure_payment_core/core/models.dart';
-import 'package:yure_payment_core/src/interfaces.dart';
+import 'package:yure_payment_core/src/common/interfaces.dart';
 
 class VisaProvider implements IPaymentProvider {
   @override
   bool canHandle(PaymentRequest request) {
-    // TODO: implement canHandle
-    throw UnimplementedError();
+    return false;
   }
 
   @override
-  Future<bool> cancelPayment(int transactionId) {
-    // TODO: implement cancelPayment
-    throw UnimplementedError();
+  Future<bool> cancelPayment(int transactionId) async {
+    return false;
   }
 
   @override
-  // TODO: implement name
-  String get name => throw UnimplementedError();
+  String get name => "Visa";
 
   @override
-  Future<PaymentResult> processPayment(
-    PaymentRequest request,
-    int transactionId,
-  ) {
-    // TODO: implement processPayment
+  String get logo => '💳';
+
+  @override
+  Future<PaymentResult> processPayment({
+    required String merchantId,
+    required int transactionId,
+    required int amount,
+  }) {
+    //implement processPayment
     throw UnimplementedError();
   }
 }
