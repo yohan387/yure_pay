@@ -1,3 +1,4 @@
+import 'package:example/product.dart';
 import 'package:flutter/material.dart';
 import 'package:yure_tips/yure_tips.dart';
 
@@ -30,14 +31,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late final YureTips _sdk;
-
   @override
   void initState() {
     super.initState();
-    YureTips.init().then((_) {
-      _sdk = YureTips.instance;
-    });
+    initSdk();
+  }
+
+  void initSdk() async {
+    await YureTips.init();
   }
 
   @override
@@ -53,16 +54,12 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             ElevatedButton(
               onPressed: () {
-                _sdk.tipsUI.addTipForms(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ProductListScreen()),
+                );
               },
-              child: Text("Add Tip"),
-            ),
-
-            ElevatedButton(
-              onPressed: () {
-                _sdk.tipsUI.showTips(context);
-              },
-              child: Text("List Tips"),
+              child: Text("Boutique en ligne"),
             ),
           ],
         ),
