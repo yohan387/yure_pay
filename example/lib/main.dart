@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-
-import 'package:yure_tips/core/models/tip.dart';
-
 import 'package:yure_tips/yure_tips.dart';
 
 void main() {
