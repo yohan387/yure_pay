@@ -1,16 +1,47 @@
-# example
+# Example App - YureTips & YurePayment
 
-A new Flutter project.
+Cet exemple montre comment utiliser les librairies **YureTips** et **YurePayment** 
+dans un projet Flutter.  
+Il simule la création de transactions avec un provider de paiement 
+et la gestion des pourboires (`tips`).
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Prérequis
 
-A few resources to get you started if this is your first Flutter project:
+- [Flutter 3.35.4+](https://docs.flutter.dev/get-started/install)  
+- Dart 3.9.2+  
+- Un émulateur Android/iOS ou un device physique connecté  
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📦 Installation
+
+1. Clone le repo :
+   ```bash
+   git clone https://github.com/ton-org/ton-projet.git
+ 
+
+2. Récupérer les dépendances
+    Dépuis la racide du projet, dans votre terminal, faire :
+        cd example
+        flutter pub get
+        cd ..
+        cd yure_payment_core
+        flutter pub get
+        cd .. yure_tips
+        flutter pub get
+
+3. Lance l’application example:
+    N.B : Au préalable, se mettre dans le dossier example
+        flutter run 
+
+## Structure
+
+lib/ → Code source de l’app exemple
+
+yure_payment_core/ → Package interne pour la gestion des paiements
+
+yure_tips/ → Package interne pour la gestion des tips.
+Il dépend aussi de yure_payment_core
+
