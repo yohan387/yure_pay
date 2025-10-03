@@ -95,7 +95,7 @@ class MockProvider with ErrorHandlerMixin implements IPaymentProvider {
       );
     }
 
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 8; i++) {
       await Future.delayed(const Duration(seconds: 1));
 
       final currentRequest = _requests.firstWhere(
@@ -112,7 +112,7 @@ class MockProvider with ErrorHandlerMixin implements IPaymentProvider {
         );
       }
 
-      log('⏰ [MOCK] Traitement en cours... ${i + 1}/15 secondes');
+      log('⏰ [MOCK] Traitement en cours... ${i + 1}/8 secondes');
     }
 
     final finalRequest = _requests.firstWhere(
